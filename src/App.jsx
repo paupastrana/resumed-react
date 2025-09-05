@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
+import Login from "./login";
+
 // ===== Parseo igual al original =====
 function parsearResumen(texto) {
   const secciones = {
@@ -109,6 +111,15 @@ function useWebSpeech(lang = "es-MX") {
 }
 
 export default function App() {
+  // ======== Auth (login con cookies) ========
+  const [user, setUser] = useState(null);
+  useEffect(() => {
+    fetch("/auth/me", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => setUser(d.user))
+      .catch(() => setUser(null));
+  }, []);
+
   // === Estado paciente (form) ===
   const [paciente, setPaciente] = useState({
     nombre: "",
@@ -117,7 +128,11 @@ export default function App() {
     fecha_nacimiento: "",
     sexo: "",
   });
-  const idMedico = Number(localStorage.getItem("id_medico") || "1");
+
+  // Usa el id del médico autenticado (si existe) o el que tenías en localStorage como fallback
+  const idMedico =
+    (user && (user.id || user.sub)) ??
+    Number(localStorage.getItem("id_medico") || "1");
 
   // === Web Speech ===
   const {
@@ -141,7 +156,7 @@ export default function App() {
 
   const cargarHistorial = async () => {
     try {
-      const r = await fetch("/api/consultas");
+      const r = await fetch("/api/consultas", { credentials: "include" });
       const lista = await r.json();
       setHistorial(Array.isArray(lista) ? lista : []);
       setDetalle(null);
@@ -153,7 +168,7 @@ export default function App() {
 
   const mostrarDetalleConsulta = async (id) => {
     try {
-      const r = await fetch(`/api/consultas/${id}`);
+      const r = await fetch(`/api/consultas/${id}`, { credentials: "include" });
       const data = await r.json();
       if (data?.error) throw new Error(data.error);
       setDetalle(data);
@@ -175,6 +190,7 @@ export default function App() {
       const r1 = await fetch("/api/pacientes/upsert", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           nombre: paciente.nombre || "",
           correo: paciente.correo || "",
@@ -191,6 +207,7 @@ export default function App() {
       const r2 = await fetch("/api/consultas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           id_paciente,
           id_medico: idMedico,
@@ -220,10 +237,22 @@ export default function App() {
     setTexto("");
   };
 
+  // Gate de login: si no hay usuario autenticado, muestra Login
+  if (!user) return <Login onLogin={setUser} />;
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, padding: 16, fontFamily: "system-ui, sans-serif" }}>
       {/* Panel izquierdo */}
       <section className="left" style={{ display: "grid", gap: 12 }}>
+        <button
+          onClick={async () => {
+            await fetch("/auth/logout", { method: "POST", credentials: "include" });
+            setUser(null);
+          }}
+        >
+          Cerrar sesión
+        </button>
+
         <header style={{ fontSize: 24, fontWeight: 700 }}>Consultas Médicas</header>
 
         {/* Formulario de paciente */}
@@ -294,9 +323,9 @@ export default function App() {
 
         {/* Transcripción y Resumen */}
         <section style={{ display: "grid", gap: 10 }}>
-          
-
-          <div className="item-texto" style={{ marginTop: 8 }}><strong>Transcripción:</strong></div>
+          <div className="item-texto" style={{ marginTop: 8 }}>
+            <strong>Transcripción:</strong>
+          </div>
           <div
             className="transcripcion"
             style={{ border: "1px solid #ddd", borderRadius: 8, padding: 12, minHeight: 120, whiteSpace: "pre-wrap" }}
