@@ -5,11 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "start": "node server.js",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "cors": "^2.8.5",
+    "multer": "^2.0.2",
+    "pg": "^8.16.3",
     "react": "18.2.0",
     "react-audio-voice-recorder": "2.2.0",
     "react-dom": "18.2.0"
@@ -24,7 +28,6 @@
     "vite": "^7.1.2"
   },
   "overrides": {
-    
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-audio-visualize": "1.1.0"
