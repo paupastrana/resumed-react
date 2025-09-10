@@ -74,12 +74,13 @@ function useWebSpeech(lang = "es-MX") {
 
     rec.onend = () => {
       setEscuchando(false);
-      // Si pausado=true fue stop manual; si no, finalizó.
     };
 
     recRef.current = rec;
     return () => {
-      try { rec.stop(); } catch {}
+      try {
+        rec.stop();
+      } catch {}
       recRef.current = null;
     };
   }, [lang]);
@@ -87,7 +88,11 @@ function useWebSpeech(lang = "es-MX") {
   const iniciar = () => {
     if (!soportado || escuchando) return;
     setInterino("");
-    try { recRef.current?.start(); } catch (e) { console.error(e); }
+    try {
+      recRef.current?.start();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const pausar = () => {
@@ -110,14 +115,20 @@ function useWebSpeech(lang = "es-MX") {
   return { soportado, escuchando, pausado, interino, texto, setTexto, iniciar, pausar, reanudar, limpiar };
 }
 
+// ==============================
+//   COMPONENTE PRINCIPAL APP
+// ==============================
 export default function App() {
   // ======== Auth (login con cookies) ========
   const [user, setUser] = useState(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+
   useEffect(() => {
     fetch("/auth/me", { credentials: "include" })
       .then((r) => r.json())
-      .then((d) => setUser(d.user))
-      .catch(() => setUser(null));
+      .then((d) => setUser(d.user || null))
+      .catch(() => setUser(null))
+      .finally(() => setLoadingUser(false));
   }, []);
 
   // === Estado paciente (form) ===
@@ -128,11 +139,6 @@ export default function App() {
     fecha_nacimiento: "",
     sexo: "",
   });
-
-  // Usa el id del médico autenticado (si existe) o el que tenías en localStorage como fallback
-  const idMedico =
-    (user && (user.id || user.sub)) ??
-    Number(localStorage.getItem("id_medico") || "1");
 
   // === Web Speech ===
   const {
@@ -147,12 +153,11 @@ export default function App() {
     reanudar,
     limpiar,
   } = useWebSpeech("es-MX");
-
   const resumen = useMemo(() => parsearResumen(texto), [texto]);
 
   // === Historial ===
   const [historial, setHistorial] = useState([]);
-  const [detalle, setDetalle] = useState(null); // {id_consulta, fecha, paciente_nombre, transcripcion, resumen}
+  const [detalle, setDetalle] = useState(null);
 
   const cargarHistorial = async () => {
     try {
@@ -177,7 +182,13 @@ export default function App() {
     }
   };
 
-  useEffect(() => { cargarHistorial(); }, []);
+  useEffect(() => {
+    if (user) {
+      cargarHistorial();
+    } else {
+      setHistorial([]);
+    }
+  }, [user]);
 
   // === Guardar ===
   const guardar = async () => {
@@ -210,7 +221,6 @@ export default function App() {
         credentials: "include",
         body: JSON.stringify({
           id_paciente,
-          id_medico: idMedico,
           transcripcion: texto || "",
           resumen: resumen || {},
         }),
@@ -237,7 +247,8 @@ export default function App() {
     setTexto("");
   };
 
-  // Gate de login: si no hay usuario autenticado, muestra Login
+  // Gate de login
+  if (loadingUser) return <div>Cargando...</div>;
   if (!user) return <Login onLogin={setUser} />;
 
   return (

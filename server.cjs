@@ -35,8 +35,8 @@ const pool = new Pool({
   host: process.env.PG_HOST || 'localhost',
   port: Number(process.env.PG_PORT || 5432),
   user: process.env.PG_USER || 'postgres',
-  password: process.env.PG_PASS || 'pau',
-  database: process.env.PG_DB || 'resumed2',
+  password: process.env.PG_PASS || 'flama',
+  database: process.env.PG_DB || 'resumed',
   max: 10,
 });
 
@@ -47,13 +47,6 @@ const JWT_SECRET = process.env.JWT_SECRET || 'supersecreto';
 const ACCESS_TTL = 60 * 15;           // 15 min
 const REFRESH_TTL = 60 * 60 * 24 * 7; // 7 días
 
-
-function issueAccessToken(id, email) {
-  return jwt.sign({ sub: id, role: 'medico', email }, JWT_SECRET, { expiresIn: ACCESS_TTL });
-}
-function issueRefreshToken(id) {
-  return jwt.sign({ sub: id, type: 'refresh' }, JWT_SECRET, { expiresIn: REFRESH_TTL });
-}
 const cookieOpts = (maxAgeSec) => ({ httpOnly:true, sameSite:'strict', path:'/', maxAge: maxAgeSec*1000 });
 
 function requireAuth(req,res,next){
@@ -63,13 +56,10 @@ function requireAuth(req,res,next){
   catch { return res.status(401).json({error:'Token inválido'}); }
 }
 
-// Opción B (alternativa): una sola URL
-// const pool = new Pool({ connectionString: process.env.PG_URL });
-
-app.get('/ping', (_req, res) => res.json({ ok: true }));
 
 
-const ENCRYPT_KEY = 'PPMBUAO'; // tu clave de encriptación
+
+const ENCRYPT_KEY = 'PPMBUAO'; // clave cryto
 
 // PACIENTE: upsert por correo con encriptación
 app.post('/api/pacientes/upsert', async (req, res) => {
@@ -147,13 +137,16 @@ app.post('/api/pacientes/upsert', async (req, res) => {
 });
 
 // CONSULTA: insertar con transcripción y resumen JSON (encriptado)
-app.post('/api/consultas', async (req, res) => {
-  const { id_paciente, id_medico, transcripcion, resumen } = req.body;
+app.post('/api/consultas', requireAuth, async (req, res) => {
+  const { id_paciente, transcripcion, resumen } = req.body;
+  const id_medico = req.user.sub;
+  console.log(id_medico);
   if (!id_paciente || !id_medico) {
     return res.status(400).json({ error: 'id_paciente e id_medico son obligatorios' });
   }
 
   try {
+    
     const insert = `
       INSERT INTO consulta (id_paciente, id_medico, transcripcion, resumenjson, fecha)
       VALUES ($1, $2,
@@ -179,7 +172,8 @@ app.post('/api/consultas', async (req, res) => {
 });
 
 // LISTAR: todas las consultas con nombre de paciente desencriptado
-app.get('/api/consultas', async (_req, res) => {
+app.get('/api/consultas',requireAuth, async (_req, res) => {
+  const id_medico = _req.user.sub;
   try {
     const q = `
       SELECT 
@@ -188,9 +182,10 @@ app.get('/api/consultas', async (_req, res) => {
         pgp_sym_decrypt(p.nombre, '${ENCRYPT_KEY}') AS paciente_nombre
       FROM consulta c
       JOIN paciente p ON p.id_paciente = c.id_paciente
+      WHERE c.id_medico = $1
       ORDER BY fecha DESC;
     `;
-    const { rows } = await pool.query(q);
+    const { rows } = await pool.query(q, [id_medico]);
     return res.json(rows);
   } catch (err) {
     console.error('[ERROR] list consultas:', err);
@@ -245,6 +240,12 @@ app.post('/api/transcribir', upload.single('audio'), async (req, res) => {
 
 
 // LOGIN: email + password
+function issueAccessToken(id, email) {
+  return jwt.sign({ sub: id, role: 'medico', email }, JWT_SECRET, { expiresIn: ACCESS_TTL });
+}
+function issueRefreshToken(id) {
+  return jwt.sign({ sub: id, type: 'refresh' }, JWT_SECRET, { expiresIn: REFRESH_TTL });
+}
 
 app.post('/auth/login', async (req, res) => {
   const { email, password } = req.body || {};
@@ -267,7 +268,6 @@ app.post('/auth/login', async (req, res) => {
     const u = q.rows[0];
     if (!u) return res.status(401).json({ error: 'Credenciales inválidas' });
 
-    // OJO: compara plano vs plano (si más adelante quieres bcrypt, te digo cómo envolver el hash dentro del cifrado)
     const ok = password === u.contrasena;
     if (!ok) return res.status(401).json({ error: 'Credenciales inválidas' });
 
@@ -275,9 +275,12 @@ app.post('/auth/login', async (req, res) => {
     const rt = issueRefreshToken(u.id);
 
     res
-      .cookie('access_token', at, cookieOpts(ACCESS_TTL))
-      .cookie('refresh_token', rt, cookieOpts(REFRESH_TTL))
-      .json({ user: { id: u.id, nombre: u.nombre, email: u.correo } });
+  .clearCookie('access_token', cookieOpts(0))   // elimina cookie vieja
+  .clearCookie('refresh_token', cookieOpts(0))  // elimina cookie vieja
+  .cookie('access_token', at, cookieOpts(ACCESS_TTL))  // crea la nueva
+  .cookie('refresh_token', rt, cookieOpts(REFRESH_TTL)) // crea la nueva
+  .json({ user: { id: u.id, nombre: u.nombre, email: u.correo } });
+
   } catch (e) {
     console.error('login error:', e);
     res.status(500).json({ error: 'Error en login' });
@@ -310,6 +313,9 @@ app.get('/auth/me', (req, res) => {
   try {
     const d = jwt.verify(t, JWT_SECRET);
     res.json({ user: { id: d.sub, role: d.role, email: d.email || null } });
+    res 
+  .clearCookie('refresh_token', cookieOpts(0))  // elimina cookie vieja
+  .clearCookie('refresh_token', cookieOpts(0))  // elimina cookie vieja
   } catch {
     res.json({ user: null });
   }
