@@ -1,0 +1,12 @@
+{
+  "compact": true,
+  "controlFlowFlattening": true,
+  "controlFlowFlatteningThreshold": 0.75,
+  "deadCodeInjection": true,
+  "deadCodeInjectionThreshold": 0.4,
+  "identifierNamesGenerator": "hexadecimal",
+  "stringArray": true,
+  "stringArrayEncoding": ["rc4"],
+  "stringArrayThreshold": 0.9,
+  "disableConsoleOutput": true
+}

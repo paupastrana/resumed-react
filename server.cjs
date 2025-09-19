@@ -15,6 +15,24 @@ const jwt = require('jsonwebtoken');
 const app = express();
 const upload = multer({ limits: { fileSize: 25 * 1024 * 1024 } }); // 25MB
 
+const fs = require('fs');
+const distPath = path.join(__dirname, 'dist');
+const publicPath = path.join(__dirname, 'public');
+
+if (fs.existsSync(distPath)) {
+  console.log('Sirviendo assets desde dist/ (producción)');
+  app.use(express.static(distPath));
+
+  // Fallback SPA: cualquier ruta que no coincida con API devuelve index.html
+  app.get('*', (req, res, next) => {
+    // si la ruta comienza con /api o /auth, no interferir
+    if (req.path.startsWith('/api') || req.path.startsWith('/auth')) return next();
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+} else if (fs.existsSync(publicPath)) {
+  console.log('Sirviendo assets desde public/ (desarrollo o fallback)');
+  app.use(express.static(publicPath));
+}
 
 // CORS con credenciales (reemplaza SOLO esta línea si quieres mantener origen restringido)
 app.use(cors({
@@ -27,7 +45,10 @@ app.use(cookieParser());
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
+
+
+
+
 
 // Pool PG
 // Opción A: con variables sueltas
@@ -44,8 +65,8 @@ const pool = new Pool({
 
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecreto';
-const ACCESS_TTL = 60 * 15;           // 15 min
-const REFRESH_TTL = 60 * 60 * 24 * 7; // 7 días
+const ACCESS_TTL = 60 * 60;           // Acceso del token por una hora
+const REFRESH_TTL = 60 * 60 ; // Acceso del token por una hora
 
 const cookieOpts = (maxAgeSec) => ({ httpOnly:true, sameSite:'strict', path:'/', maxAge: maxAgeSec*1000 });
 
@@ -312,10 +333,9 @@ app.get('/auth/me', (req, res) => {
   if (!t) return res.json({ user: null });
   try {
     const d = jwt.verify(t, JWT_SECRET);
+    res.clearCookie('refresh_token', cookieOpts(0));
+    res.clearCookie('access_token', cookieOpts(0));
     res.json({ user: { id: d.sub, role: d.role, email: d.email || null } });
-    res 
-  .clearCookie('refresh_token', cookieOpts(0))  // elimina cookie vieja
-  .clearCookie('refresh_token', cookieOpts(0))  // elimina cookie vieja
   } catch {
     res.json({ user: null });
   }
