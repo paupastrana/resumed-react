@@ -29,4 +29,8 @@ export default defineConfig({
       },
     },
   },
+    build: {
+    sourcemap: false,   // 🔴 evita exponer rutas y código fuente
+    minify: 'esbuild',  // o 'terser' si prefieres
+  },
 })
