@@ -25,16 +25,16 @@ export default function Login({ onLogin }) {
 
   return (
     <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: '100vh',
+      position: 'fixed',   // ocupa todo el viewport
+      inset: 0,            // top:0 right:0 bottom:0 left:0
+      display: 'grid',     // truco rápido para centrar
+      placeItems: 'center',
+      padding: 24,         // respiración en pantallas chicas
       background: 'linear-gradient(135deg, #e0f7fa, #e3f2fd)',
       fontFamily: 'system-ui, sans-serif'
     }}>
       <div style={{
-        width: '100%',
-        maxWidth: 420,
+        width: 'min(420px, 92vw)', // responsivo y centrado
         padding: '32px 28px',
         borderRadius: 16,
         background: '#fff',
