@@ -1041,7 +1041,7 @@ export default function App() {
 
         {/* Panel derecho */}
         <section className="right card">
-          <h2 className="subtitle">Historial de Resúmenes</h2>
+          <h1 className="title">Historial de Resúmenes</h1>
           {!detalle ? (
             <div id="historial" className="historial">
               {historial.length === 0 && <div className="muted">No hay consultas aún.</div>}

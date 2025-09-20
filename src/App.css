@@ -27,7 +27,7 @@ body{
   box-shadow:0 4px 10px rgba(0,0,0,.08);
   z-index:1000;
 }
-.topbar__brand{ letter-spacing:.2px ; font-size: 32; font-weight: 700, }
+.topbar__brand{ letter-spacing:.2px ; font-size: 1.6rem; font-weight: 700; }
 
 /* Contenedor justo bajo la topbar */
 .layout{
