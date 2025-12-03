@@ -1,0 +1,53 @@
+                           
+version: '3.8'
+
+services:
+  # 1. BASE DE DATOS (Postgres)
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: flama
+      POSTGRES_PASSWORD: password_seguro  # ¡Mismo pass que en Node!
+      POSTGRES_DB: resumed
+    volumes:
+      - ./pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  # 2. IA (Python - FastAPI)
+  api_python:
+    build: ./python_api
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      # Si Python necesitara la BD (opcional, por ahora solo hace NLP)
+      DATABASE_URL: postgresql://flama:password_seguro@db:5432/resumed
+
+  # 3. BACKEND PRINCIPAL (Node.js)
+  api_node:
+    build: ./backend_node
+    restart: always
+    ports:
+      - "3000:3000"  # Este es el puerto que usará tu React
+    depends_on:
+      - db
+      - api_python
+    environment:
+      # Node se conecta a la base de datos 'db'
+      PG_HOST: db
+      PG_USER: flama
+      PG_PASS: Flam0.28
+      PG_DB: resumed
+
+      # Node le habla a Python por su nombre de servicio
+      PYTHON_API_URL: http://api_python:8000
+
+      # Claves de seguridad
+      JWT_SECRET: super_secreto_flama
+      CORS_ORIGIN: http://163.192.133.1:5173 # O tu URL de Vercel
+
+
+
+
