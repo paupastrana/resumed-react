@@ -6,10 +6,14 @@ from spacy.matcher import PhraseMatcher, Matcher
 from spacy.tokens import Doc
 from typing import List, Dict, Any
 import re
+from fastapi.middleware.cors import CORSMiddleware
+
 
 # ----------------------------------------------------
 # 1. CONFIGURACIÓN Y CARGA MEJORADA DE DATOS
 # ----------------------------------------------------
+
+
 
 try:
     nlp = spacy.load("es_core_news_sm") 
@@ -163,6 +167,21 @@ def encontrar_dosis_asociada(doc: Doc, posicion_med: int, ventana: int = 8) -> D
 
 app = FastAPI()
 
+
+origins = [
+    "http://localhost:5173",          # Para cuando pruebas en tu PC
+    "https://tu-proyecto.vercel.app", # TU URL DE VERCEL (cuando la tengas)
+    "*"                               # (Opcional: permite a todos, útil para pruebas iniciales)
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 class TextoEntrada(BaseModel):
     texto: str
 
@@ -185,21 +204,18 @@ def procesar(data: TextoEntrada) -> Dict[str, List[Dict[str, str]]]:
         span = doc[start:end]
         
         if label == "MEDICAMENTO":
-            # Buscar dosis asociada
+            # 1. Guardamos el nombre del medicamento tal cual aparece
+            resultados[span.text] = "MEDICAMENTO"
+
+            # 2. Buscamos dosis/frecuencia satélites
             info_dosis = encontrar_dosis_asociada(doc, end)
-            
-            if info_dosis["dosis"] or info_dosis["frecuencia"]:
-                # Construir texto completo del medicamento con dosis
-                texto_completo = span.text
-                if info_dosis["dosis"]:
-                    texto_completo += f" {info_dosis['dosis']}"
-                if info_dosis["frecuencia"]:
-                    texto_completo += f" {info_dosis['frecuencia']}"
-                
-                resultados[texto_completo] = "MEDICAMENTO_DOSIS"
-            else:
-                resultados[span.text] = "MEDICAMENTO"
-                
+
+            # 3. Si las encontramos, las guardamos como entidades independientes
+            if info_dosis["dosis"]:
+                resultados[info_dosis["dosis"]] = "DOSIS"
+
+            if info_dosis["frecuencia"]:
+                resultados[info_dosis["frecuencia"]] = "FRECUENCIA"
         elif label == "ENFERMEDAD":
             resultados[span.text] = "ENFERMEDAD"
     
