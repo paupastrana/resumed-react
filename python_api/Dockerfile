@@ -32,7 +32,8 @@ RUN pip install --no-cache-dir --default-timeout=1000 -r requirements.txt
 # --- DESCARGA DEL MODELO ---
 # Lo descargamos AQUÍ para que quede guardado en la imagen
 # Instalamos el modelo directamente desde la fuente oficial usando PIP
-RUN python -m spacy download es_core_news_sm
+# Instalamos spacy explícitamente y LUEGO descargamos el modelo
+RUN pip install spacy && python -m spacy download es_core_news_sm
 
 # Copiamos el resto del código
 COPY . .
