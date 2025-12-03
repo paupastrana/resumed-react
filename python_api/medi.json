@@ -1,0 +1,102 @@
+[
+  {
+    "nombre": "metformina",
+    "nombres_comerciales": ["glucophage", "metfogamma"],
+    "formas": ["500 mg", "850 mg", "1000 mg"]
+  },
+  {
+    "nombre": "gliclazida",
+    "nombres_comerciales": ["diamicron"],
+    "formas": ["30 mg", "60 mg"]
+  },
+  {
+    "nombre": "lisinopril",
+    "nombres_comerciales": ["zestril", "prinivil"],
+    "formas": ["5 mg", "10 mg", "20 mg"]
+  },
+  {
+    "nombre": "furosemida",
+    "nombres_comerciales": ["seguril", "lasix"],
+    "formas": ["20 mg", "40 mg"]
+  },
+  {
+    "nombre": "buscapina compositum",
+    "nombres_comerciales": ["buscapina"],
+    "formas": ["comprimidos"]
+  },
+  {
+    "nombre": "losartán",
+    "nombres_comerciales": ["cozaar"],
+    "formas": ["25 mg", "50 mg", "100 mg"]
+  },
+  {
+    "nombre": "paracetamol",
+    "nombres_comerciales": ["tylenol", "acetaminofén"],
+    "formas": ["500 mg", "650 mg"]
+  },
+  {
+    "nombre": "ácido acetilsalicílico",
+    "nombres_comerciales": ["aspirina"],
+    "formas": ["100 mg", "500 mg"]
+  },
+  {
+    "nombre": "atorvastatina",
+    "nombres_comerciales": ["lipitor"],
+    "formas": ["10 mg", "20 mg", "40 mg", "80 mg"]
+  },
+  {
+    "nombre": "omeprazol",
+    "nombres_comerciales": ["prilosec"],
+    "formas": ["20 mg", "40 mg"]
+  },
+  {
+    "nombre": "amlodipino",
+    "nombres_comerciales": ["norvasc"],
+    "formas": ["5 mg", "10 mg"]
+  },
+  {
+    "nombre": "salbutamol",
+    "nombres_comerciales": ["ventolin"],
+    "formas": ["inhalador"]
+  },
+  {
+    "nombre": "insulina glargina",
+    "nombres_comerciales": ["lantus"],
+    "formas": ["100 UI/ml"]
+  },
+  {
+    "nombre": "clopidogrel",
+    "nombres_comerciales": ["plavix"],
+    "formas": ["75 mg"]
+  },
+  {
+    "nombre": "metoprolol",
+    "nombres_comerciales": ["lopressor"],
+    "formas": ["25 mg", "50 mg", "100 mg"]
+  },
+  {
+    "nombre": "warfarin",
+    "nombres_comerciales": ["coumadin"],
+    "formas": ["1 mg", "2 mg", "5 mg"]
+  },
+  {
+    "nombre": "levotiroxina",
+    "nombres_comerciales": ["synthroid"],
+    "formas": ["25 mcg", "50 mcg", "100 mcg"]
+  },
+  {
+    "nombre": "sertralina",
+    "nombres_comerciales": ["zoloft"],
+    "formas": ["50 mg", "100 mg"]
+  },
+  {
+    "nombre": "amoxicilina",
+    "nombres_comerciales": ["amoxil"],
+    "formas": ["500 mg"]
+  },
+  {
+    "nombre": "simvastatina",
+    "nombres_comerciales": ["zocor"],
+    "formas": ["10 mg", "20 mg", "40 mg"]
+  }
+]

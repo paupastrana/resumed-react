@@ -50,8 +50,8 @@ app.use(express.urlencoded({ extended: true }));
 const pool = new Pool({
   host: process.env.PG_HOST || 'localhost',
   port: Number(process.env.PG_PORT || 5432),
-  user: process.env.PG_USER || 'postgres',
-  password: process.env.PG_PASS || 'flama',
+  user: process.env.PG_USER || 'flama',
+  password: process.env.PG_PASS || 'F1ama28.1',
   database: process.env.PG_DB || 'resumed',
   max: 10,
 });

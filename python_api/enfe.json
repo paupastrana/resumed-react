@@ -1,0 +1,90 @@
+[
+  {
+    "nombre": "hipertensión arterial",
+    "sinonimos": ["hta", "hipertensión", "presión alta", "has"]
+  },
+  {
+    "nombre": "diabetes mellitus tipo 2",
+    "sinonimos": ["dm2", "diabetes", "diabetes tipo 2", "azúcar alta"]
+  },
+  {
+    "nombre": "insuficiencia cardíaca congestiva",
+    "sinonimos": ["icc", "insuficiencia cardíaca", "falla cardíaca"]
+  },
+  {
+    "nombre": "colelitiasis",
+    "sinonimos": ["cálculos biliares", "piedras en la vesícula"]
+  },
+  {
+    "nombre": "disnea",
+    "sinonimos": ["dificultad para respirar", "falta de aire"]
+  },
+  {
+    "nombre": "dolor abdominal",
+    "sinonimos": ["dolor de estómago", "dolor de barriga"]
+  },
+  {
+    "nombre": "edema",
+    "sinonimos": ["hinchazón", "retención de líquidos"]
+  },
+  {
+    "nombre": "artritis reumatoide",
+    "sinonimos": ["artritis"]
+  },
+  {
+    "nombre": "hígado graso",
+    "sinonimos": ["esteatosis hepática"]
+  },
+  {
+    "nombre": "hipotiroidismo",
+    "sinonimos": ["tiroides baja"]
+  },
+  {
+    "nombre": "hipertiroidismo",
+    "sinonimos": ["tiroides alta"]
+  },
+  {
+    "nombre": "asma",
+    "sinonimos": ["asma bronquial"]
+  },
+  {
+    "nombre": "epoc",
+    "sinonimos": ["enfermedad pulmonar obstructiva crónica"]
+  },
+  {
+    "nombre": "osteoporosis",
+    "sinonimos": ["huesos débiles"]
+  },
+  {
+    "nombre": "alergias",
+    "sinonimos": ["reacción alérgica"]
+  },
+  {
+    "nombre": "infecciones urinarias",
+    "sinonimos": ["infección urinaria"]
+  },
+  {
+    "nombre": "infecciones respiratorias",
+    "sinonimos": ["infección respiratoria"]
+  },
+  {
+    "nombre": "dolor crónico",
+    "sinonimos": ["dolor persistente"]
+  },
+  {
+    "nombre": "migrañas",
+    "sinonimos": ["migraña", "cefalea migranosa"]
+  },
+  {
+    "nombre": "ansiedad",
+    "sinonimos": ["trastorno de ansiedad"]
+  },
+  {
+    "nombre": "depresión",
+    "sinonimos": ["trastorno depresivo"]
+  },
+  {
+    "nombre": "insomnio",
+    "sinonimos": ["dificultad para dormir"]
+  }
+]
