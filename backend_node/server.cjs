@@ -460,19 +460,19 @@ app.post('/auth/login', async (req, res) => {
   if (!email || !password) return res.status(400).json({ error: 'Datos inválidos' });
 
   try {
-      const q = await pool.query(
-    `
-    SELECT 
-      id_medico AS id,
-      pgp_sym_decrypt(nombre::text,     '${ENCRYPT_KEY}') AS nombre,
-      pgp_sym_decrypt(correo::text,     '${ENCRYPT_KEY}') AS correo,
-      pgp_sym_decrypt(contrasena::text, '${ENCRYPT_KEY}') AS contrasena
-    FROM medico
-    WHERE pgp_sym_decrypt(correo::text, '${ENCRYPT_KEY}') = $1
-    LIMIT 1;
-    `,
-    [email]
-  );
+    const q = await pool.query(
+      `
+      SELECT 
+        id_medico AS id,
+        pgp_sym_decrypt(nombre::bytea,     '${ENCRYPT_KEY}') AS nombre,
+        pgp_sym_decrypt(correo::bytea,     '${ENCRYPT_KEY}') AS correo,
+        pgp_sym_decrypt(contrasena::bytea, '${ENCRYPT_KEY}') AS contrasena
+      FROM medico
+      WHERE pgp_sym_decrypt(correo::bytea, '${ENCRYPT_KEY}') = $1
+      LIMIT 1;
+      `,
+      [email]
+    );
     const u = q.rows[0];
     if (!u) return res.status(401).json({ error: 'Credenciales inválidas' });
 
