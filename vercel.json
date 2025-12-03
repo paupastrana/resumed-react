@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/auth/:match*",
+      "destination": "http://163.192.133.1:3000/auth/:match*"
+    },
+    {
+      "source": "/api/:match*",
+      "destination": "http://163.192.133.1:3000/api/:match*"
+    }
+  ]
+}
