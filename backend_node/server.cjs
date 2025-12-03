@@ -11,33 +11,37 @@ const jwt = require('jsonwebtoken');
 const ffmpegPath = require('ffmpeg-static');
 const ffmpeg = require('fluent-ffmpeg');
 
-ffmpeg.setFfmpegPath(ffmpegPath);//funciona para whisper
+// Configuración FFMPEG
+ffmpeg.setFfmpegPath(ffmpegPath);
+
+// URL de la API de Python (Lee la variable de Docker o usa localhost por defecto)
 const PYTHON_API_URL = process.env.PYTHON_API_URL || "http://127.0.0.1:8000";
+
 const app = express();
 const upload = multer({
-  storage: multer.memoryStorage(),   // 👈 importante
+  storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024 }
 });
-app.set('trust proxy', 1); // para cookies secure detrás de proxy en 
 
-//whisper
+app.set('trust proxy', 1); 
+
+// Configuración de Whisper
 let asrPipeline = null;
-
 
 const fs = require('fs');
 const distPath = path.join(__dirname, 'dist');
 const publicPath = path.join(__dirname, 'public');
 
+// Servir estáticos
 if (fs.existsSync(distPath)) {
   console.log('Sirviendo assets desde dist/ (producción)');
   app.use(express.static(distPath));
-  // (tu fallback SPA lo puedes agregar después de las rutas /api y /auth con RegExp si lo necesitas)
 } else if (fs.existsSync(publicPath)) {
   console.log('Sirviendo assets desde public/ (desarrollo o fallback)');
   app.use(express.static(publicPath));
 }
 
-// CORS con credenciales
+// CORS
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   credentials: true
@@ -46,7 +50,7 @@ app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Pool PG
+// Pool Postgres
 const pool = new Pool({
   host: process.env.PG_HOST || 'localhost',
   port: Number(process.env.PG_PORT || 5432),
@@ -56,20 +60,19 @@ const pool = new Pool({
   max: 10,
 });
 
-// ======== TOKENS Y COOKIES (2 horas) ========
+// Tokens y Seguridad
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecreto';
 const ACCESS_TTL  = 60 * 60 * 2; // 2 horas
-const REFRESH_TTL = 60 * 60 * 2; // 2 horas (si quieres más tiempo, súbelo aquí)
+const REFRESH_TTL = 60 * 60 * 2; 
+const ENCRYPT_KEY = 'PPMBUAO'; // Clave de encriptación DB
 
 function cookieOpts(maxAgeSec) {
   const isProd = process.env.NODE_ENV === 'production';
-  // Si sirves front y API en orígenes distintos, usa sameSite:'none' y secure:true (HTTPS)
   return {
-   
     httpOnly: true,
-    sameSite: 'lax',   // 👈
+    sameSite: 'lax',
     secure: isProd ? true : false,
-    path: '/',         // 👈
+    path: '/',
     maxAge: maxAgeSec * 1000
   };
 }
@@ -81,11 +84,7 @@ function requireAuth(req,res,next){
   catch { return res.status(401).json({error:'Token inválido'}); }
 }
 
-const ENCRYPT_KEY = 'PPMBUAO'; // clave cryto
-
-
-//whisper oara oasarlo 
-//whisper
+// Inicializar Whisper
 async function getASR() {
   if (!globalThis.__ASR_PIPELINE__) {
     const { pipeline } = await import('@xenova/transformers');
@@ -95,20 +94,16 @@ async function getASR() {
   }
   return globalThis.__ASR_PIPELINE__;
 }
-// ========== UTIL: convertir a WAV 16k mono + normalizar ==========
+
+// Utilidades de Audio
 function convertirAWav16kMono(entradaPath, extraGainDb = 6) {
   return new Promise((resolve, reject) => {
     const outPath = entradaPath.replace(/\.[a-z0-9]+$/i, '') + '.wav';
     let stderr = '';
-    // Filtros: denoise leve + normalización dinámica + high-pass + ganancia
     const filtros = [
-      // recorta ruidos muy graves
       'highpass=f=120',
-      // denoise muy moderado
       'afftdn=nf=-25',
-      // normaliza dinámicamente
       'dynaudnorm',
-      // ganancia extra (ajustable)
       `volume=${extraGainDb}dB`
     ];
 
@@ -119,7 +114,6 @@ function convertirAWav16kMono(entradaPath, extraGainDb = 6) {
       .format('wav')
       .on('stderr', d => { stderr += d; })
       .on('end', () => {
-        if (stderr) console.log('[ffmpeg]', stderr.split('\n').slice(-6).join('\n'));
         resolve(outPath);
       })
       .on('error', err => {
@@ -130,10 +124,7 @@ function convertirAWav16kMono(entradaPath, extraGainDb = 6) {
   });
 }
 
-// ========== UTIL: cargar WAV a Float32Array y medir RMS ==========
 function wav16MonoToFloat32Array(buf) {
-  // WAV PCM s16le, mono, 16kHz (como lo generamos con ffmpeg)
-  // Salta cabecera WAV (44 bytes) y convierte a float32 [-1,1]
   const headerSize = 44;
   if (buf.length <= headerSize) return new Float32Array(0);
   const pcm = buf.subarray(headerSize);
@@ -142,9 +133,8 @@ function wav16MonoToFloat32Array(buf) {
   for (let i = 0; i < samples; i++) {
     const lo = pcm[i*2];
     const hi = pcm[i*2+1];
-    // int16 little-endian
     const s = (hi << 8) | (lo & 0xff);
-    const val = (s < 0x8000 ? s : s - 0x10000); // signo
+    const val = (s < 0x8000 ? s : s - 0x10000); 
     out[i] = val / 32768;
   }
   return out;
@@ -157,86 +147,68 @@ function rms(x) {
   return Math.sqrt(acc / x.length);
 }
 
-//whisper
+// --- FUNCIÓN PARA COMUNICARSE CON PYTHON ---
+async function procesarConAPI(texto) {
+  console.log(`[Node] Enviando a Python: ${PYTHON_API_URL}/procesar`);
+  try {
+    const r = await fetch(`${PYTHON_API_URL}/procesar`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texto })
+    });
+    if (!r.ok) throw new Error(`Status ${r.status}`);
+    return await r.json();
+  } catch (error) {
+    console.error("Error conectando con Python:", error);
+    return { entidades: [] }; // Retorno seguro si falla Python
+  }
+}
+
+// Ruta Principal: Transcripción Local + Envío a Python
 app.post('/api/transcribir-local', upload.single('audio'), async (req, res) => {
   try {
     console.log('[ASR] /api/transcribir-local hit. file?', !!req.file, 'size', req.file?.size);
     if (!req.file) return res.status(400).json({ error: 'No llegó archivo "audio".' });
 
-    // Guardar webm temporal
     const tmpDir = path.join(process.cwd(), 'tmp');
     if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 
     const webmPath = path.join(tmpDir, `rec_${Date.now()}.webm`);
     fs.writeFileSync(webmPath, req.file.buffer);
-    console.log('[ASR] webm guardado:', webmPath, 'bytes:', fs.statSync(webmPath).size);
 
-    // Convertir a wav 16k mono con ganancia
-    let wavPath = await convertirAWav16kMono(webmPath, 8 /* dB */);
-    console.log('[ASR] convertido a wav:', wavPath);
-
-    // Cargar WAV y medir RMS
+    let wavPath = await convertirAWav16kMono(webmPath, 8);
     const wavBuf = fs.readFileSync(wavPath);
     const audioFloat = wav16MonoToFloat32Array(wavBuf);
     const nivel = rms(audioFloat);
-    console.log(`[ASR] muestras: ${audioFloat.length} rms: ${nivel.toFixed(6)}`);
 
     if (audioFloat.length < 16000) {
-      return res.json({ text: '', warning: 'Audio muy corto (<1s). Habla un poco más.' });
+      return res.json({ text: '', warning: 'Audio muy corto.' });
     }
     if (nivel < 0.01) {
-      // RMS bajísimo → reintento con más ganancia antes de rendirnos
       console.log('[ASR] RMS bajo, reintento con +12 dB…');
       wavPath = await convertirAWav16kMono(webmPath, 12);
     }
 
-    // Recalcular con el archivo final
     const wavBuf2 = fs.readFileSync(wavPath);
     const audioFloat2 = wav16MonoToFloat32Array(wavBuf2);
-    const nivel2 = rms(audioFloat2);
-    console.log(`[ASR] RMS final: ${nivel2.toFixed(6)}`);
 
-    // Llamar a Whisper (forzando español y task)
     const asr = await getASR();
     const result = await asr(audioFloat2, {
-      // chunking para audios de 5–60 s
       chunk_length_s: 30,
       stride_length_s: 5,
-      // fuerza español y modo transcripción (no traducir)
       language: 'es',
       task: 'transcribe',
-      // imprime timestamps si quieres depurar:
       return_timestamps: false,
-      // decodificación estable
       temperature: 0,
       do_sample: false,
     });
 
-    // `result` puede venir como { text, chunks/segments? }
     let texto = (result?.text || '').trim();
-    const segs = (result?.chunks || result?.segments || []).length || 0;
-    console.log('[ASR] segments:', segs);
     console.log('[ASR] texto:', texto);
 
-
-    //agregar code para enviar a API PYTHON
-
-// función que habla con la API de Python
-async function procesarConAPI(texto) {
-  console.log(`Enviando a Python: ${PYTHON_URL}/procesar`);
-  const r = await fetch(`${PYTHON_URL}/procesar`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ texto })
-  });
-  return await r.json();
-}
-
-    //TERMINA CODIGO PARA ENVIAR A API PYTHON
-
-    // Si sigue vacío, dale un empujón final (más ganancia)
+    // Reintento final si vacío
     if (!texto) {
-      console.log('[ASR] vacío tras primer pase, último intento +15 dB…');
+      console.log('[ASR] vacío, último intento +15 dB…');
       const wavPath3 = await convertirAWav16kMono(webmPath, 15);
       const wavBuf3 = fs.readFileSync(wavPath3);
       const audioFloat3 = wav16MonoToFloat32Array(wavBuf3);
@@ -250,32 +222,27 @@ async function procesarConAPI(texto) {
         do_sample: false,
       });
       texto = (result2?.text || '').trim();
-      console.log('[ASR] texto (reintento):', texto);
     }
 
-    try {
-    const entidades = await procesarConAPI(texto);
+    // Llamada a Python para entidades
+    let entidades = { entidades: [] };
+    if (texto) {
+        entidades = await procesarConAPI(texto);
+    }
     console.log("[NLP] entidades detectadas:", entidades);
 
-    // si quieres, guárdalas en DB o mándalas junto con la respuesta
     return res.json({
       transcripcion: texto,
       entidades: entidades.entidades || []
     });
-  } catch (err) {
-    console.error("Error llamando a NLP API:", err);
-    return res.json({
-      transcripcion: texto,
-      entidades: []
-    });
-  }
+
   } catch (err) {
     console.error('[ASR][error]', err);
     return res.status(500).json({ error: 'Fallo al transcribir audio.' });
   }
 });
 
-// PACIENTE: upsert por correo con encriptación
+// PACIENTE: Upsert (CORREGIDO CON ::bytea)
 app.post('/api/pacientes/upsert', async (req, res) => {
   const { nombre, correo, edad, fecha_nacimiento, sexo } = req.body;
   if (!correo) return res.status(400).json({ error: 'correo es obligatorio' });
@@ -284,10 +251,11 @@ app.post('/api/pacientes/upsert', async (req, res) => {
   try {
     await client.query('BEGIN');
 
+    // 1. Buscamos usando ::bytea en el WHERE
     const sel = `
       SELECT id_paciente
       FROM paciente
-      WHERE pgp_sym_decrypt(correo, '${ENCRYPT_KEY}') = $1
+      WHERE pgp_sym_decrypt(correo::bytea, '${ENCRYPT_KEY}') = $1
       LIMIT 1;
     `;
     const found = await client.query(sel, [correo]);
@@ -349,11 +317,11 @@ app.post('/api/pacientes/upsert', async (req, res) => {
   }
 });
 
-// CONSULTA: insertar con transcripción y resumen JSON (encriptado)
+// CONSULTA: Insertar (CORREGIDO)
 app.post('/api/consultas', requireAuth, async (req, res) => {
   const { id_paciente, transcripcion, resumen } = req.body;
   const id_medico = req.user.sub;
-  console.log(id_medico);
+  
   if (!id_paciente || !id_medico) {
     return res.status(400).json({ error: 'id_paciente e id_medico son obligatorios' });
   }
@@ -383,19 +351,20 @@ app.post('/api/consultas', requireAuth, async (req, res) => {
   }
 });
 
-// LISTAR: todas las consultas con nombre de paciente desencriptado
+// LISTAR: Consultas (CORREGIDO CON ::bytea)
 app.get('/api/consultas', requireAuth, async (_req, res) => {
   const id_medico = _req.user.sub;
   try {
+    // Agregado ::bytea en fecha y nombre
     const q = `
       SELECT 
         c.id_consulta,
-        pgp_sym_decrypt(c.fecha, '${ENCRYPT_KEY}') AS fecha,
-        pgp_sym_decrypt(p.nombre, '${ENCRYPT_KEY}') AS paciente_nombre
+        pgp_sym_decrypt(c.fecha::bytea, '${ENCRYPT_KEY}') AS fecha,
+        pgp_sym_decrypt(p.nombre::bytea, '${ENCRYPT_KEY}') AS paciente_nombre
       FROM consulta c
       JOIN paciente p ON p.id_paciente = c.id_paciente
       WHERE c.id_medico = $1
-      ORDER BY fecha DESC;
+      ORDER BY id_consulta DESC;
     `;
     const { rows } = await pool.query(q, [id_medico]);
     return res.json(rows);
@@ -405,18 +374,19 @@ app.get('/api/consultas', requireAuth, async (_req, res) => {
   }
 });
 
-// DETALLE: protegida + desencriptado
+// DETALLE: Consulta (CORREGIDO CON ::bytea)
 app.get('/api/consultas/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
   try {
+    // Agregado ::bytea en todos los campos a desencriptar
     const q = `
       SELECT 
         c.id_consulta,
-        pgp_sym_decrypt(c.fecha, '${ENCRYPT_KEY}') AS fecha,
-        pgp_sym_decrypt(c.transcripcion, '${ENCRYPT_KEY}') AS transcripcion,
-        pgp_sym_decrypt(c.resumenjson, '${ENCRYPT_KEY}') AS resumenjson,
-        pgp_sym_decrypt(p.nombre, '${ENCRYPT_KEY}') AS paciente_nombre,
-        pgp_sym_decrypt(p.correo, '${ENCRYPT_KEY}') AS correo
+        pgp_sym_decrypt(c.fecha::bytea, '${ENCRYPT_KEY}') AS fecha,
+        pgp_sym_decrypt(c.transcripcion::bytea, '${ENCRYPT_KEY}') AS transcripcion,
+        pgp_sym_decrypt(c.resumenjson::bytea, '${ENCRYPT_KEY}') AS resumenjson,
+        pgp_sym_decrypt(p.nombre::bytea, '${ENCRYPT_KEY}') AS paciente_nombre,
+        pgp_sym_decrypt(p.correo::bytea, '${ENCRYPT_KEY}') AS correo
       FROM consulta c
       JOIN paciente p ON p.id_paciente = c.id_paciente
       WHERE c.id_consulta = $1
@@ -442,9 +412,8 @@ app.get('/api/consultas/:id', requireAuth, async (req, res) => {
   }
 });
 
-// (Opcional) stub de /api/transcribir
 app.post('/api/transcribir', upload.single('audio'), async (req, res) => {
-  return res.status(501).json({ error: 'No implementado. Usa Web Speech en el frontend.' });
+  return res.status(501).json({ error: 'Usa la ruta /api/transcribir-local' });
 });
 
 // ======== LOGIN / REFRESH / LOGOUT ========
@@ -460,6 +429,7 @@ app.post('/auth/login', async (req, res) => {
   if (!email || !password) return res.status(400).json({ error: 'Datos inválidos' });
 
   try {
+    // Login Corregido con ::bytea
     const q = await pool.query(
       `
       SELECT 
@@ -476,7 +446,6 @@ app.post('/auth/login', async (req, res) => {
     const u = q.rows[0];
     if (!u) return res.status(401).json({ error: 'Credenciales inválidas' });
 
-    // Tu validación tal cual
     const ok = password === u.contrasena;
     if (!ok) return res.status(401).json({ error: 'Credenciales inválidas' });
 
@@ -502,7 +471,7 @@ app.post('/auth/refresh', (req, res) => {
   try {
     const d = jwt.verify(rt, JWT_SECRET);
     if (d.type !== 'refresh') throw new Error('tipo');
-    const at = issueAccessToken(d.sub, ''); // email opcional
+    const at = issueAccessToken(d.sub, ''); 
     res.cookie('access_token', at, cookieOpts(ACCESS_TTL)).json({ ok: true });
   } catch {
     res.status(401).json({ error: 'Refresh inválido' });
@@ -527,7 +496,6 @@ app.get('/auth/me', (req, res) => {
   }
 });
 
-// Ruta de prueba protegida
 app.get('/api/check-auth', requireAuth, (_req,res)=> res.json({ok:true}));
 
 const PORT = process.env.PORT || 3000;
