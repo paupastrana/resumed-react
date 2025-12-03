@@ -12,7 +12,7 @@ const ffmpegPath = require('ffmpeg-static');
 const ffmpeg = require('fluent-ffmpeg');
 
 ffmpeg.setFfmpegPath(ffmpegPath);//funciona para whisper
-
+const PYTHON_API_URL = process.env.PYTHON_API_URL || "http://127.0.0.1:8000";
 const app = express();
 const upload = multer({
   storage: multer.memoryStorage(),   // 👈 importante
@@ -223,7 +223,8 @@ app.post('/api/transcribir-local', upload.single('audio'), async (req, res) => {
 
 // función que habla con la API de Python
 async function procesarConAPI(texto) {
-  const r = await fetch("http://127.0.0.1:8000/procesar", {
+  console.log(`Enviando a Python: ${PYTHON_URL}/procesar`);
+  const r = await fetch(`${PYTHON_URL}/procesar`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ texto })
@@ -459,19 +460,19 @@ app.post('/auth/login', async (req, res) => {
   if (!email || !password) return res.status(400).json({ error: 'Datos inválidos' });
 
   try {
-    const q = await pool.query(
-      `
-      SELECT 
-        id_medico AS id,
-        pgp_sym_decrypt(nombre,     '${ENCRYPT_KEY}') AS nombre,
-        pgp_sym_decrypt(correo,     '${ENCRYPT_KEY}') AS correo,
-        pgp_sym_decrypt(contrasena, '${ENCRYPT_KEY}') AS contrasena
-      FROM medico
-      WHERE pgp_sym_decrypt(correo, '${ENCRYPT_KEY}') = $1
-      LIMIT 1;
-      `,
-      [email]
-    );
+      const q = await pool.query(
+    `
+    SELECT 
+      id_medico AS id,
+      pgp_sym_decrypt(nombre::text,     '${ENCRYPT_KEY}') AS nombre,
+      pgp_sym_decrypt(correo::text,     '${ENCRYPT_KEY}') AS correo,
+      pgp_sym_decrypt(contrasena::text, '${ENCRYPT_KEY}') AS contrasena
+    FROM medico
+    WHERE pgp_sym_decrypt(correo::text, '${ENCRYPT_KEY}') = $1
+    LIMIT 1;
+    `,
+    [email]
+  );
     const u = q.rows[0];
     if (!u) return res.status(401).json({ error: 'Credenciales inválidas' });
 
